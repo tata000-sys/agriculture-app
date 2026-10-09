@@ -1,0 +1,10 @@
+{
+  "name": "農業管理アプリ",
+  "short_name": "農業管理",
+  "description": "農地の環境を確認するアプリ",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f7f1",
+  "theme_color": "#24734b"
+}
