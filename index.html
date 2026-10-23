@@ -28,6 +28,17 @@
   <h1>🌱 農業管理アプリ</h1>
   <p class="note">農地の環境を確認する試作品</p>
   <p class="note">現在はデモ値です。実際のセンサーとは未接続です。</p>
+  <div class="card">
+  <h2>Firebase接続</h2>
+  <label for="email">メールアドレス</label>
+  <input id="email" type="email" autocomplete="username"
+         placeholder="登録したメールアドレス">
+  <label for="password">パスワード</label>
+  <input id="password" type="password"
+         autocomplete="current-password" placeholder="パスワード">
+  <button id="loginButton" type="button">ログインして接続</button>
+  <p id="connectionStatus" class="note">未接続</p>
+</div>
   <label for="crop">作物</label>
   <select id="crop">
     <option value="野菜">野菜（仮設定）</option>
@@ -54,35 +65,129 @@
     <p class="note">水分の基準はセンサーや土質、作物によって異なります。pHだけでは栄養不足を断定できません。</p>
   </div>
 </main>
-<script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js";
+  import {
+    getAuth,
+    signInWithEmailAndPassword
+  } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js";
+  import {
+    getDatabase,
+    ref,
+    onValue
+  } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDPF8oyzQAHPmmmEw1VRrwl-J0D1NuHGcg",
+    authDomain: "nogyouikusei.firebaseapp.com",
+    databaseURL: "https://nogyouikusei-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "nogyouikusei",
+    storageBucket: "nogyouikusei.firebasestorage.app",
+    messagingSenderId: "565792719066",
+    appId: "1:565792719066:web:1fc696d70b7cae66e2e5e3",
+    measurementId: "G-72CZJSLMJJ"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const database = getDatabase(app);
+
   const ids = ["ph", "moisture", "temp", "humidity"];
   const initial = { ph: 6.5, moisture: 45, temp: 25, humidity: 60 };
+
   function update() {
     const ph = Number(document.getElementById("ph").value);
     const moisture = Number(document.getElementById("moisture").value);
     const temp = Number(document.getElementById("temp").value);
     const humidity = Number(document.getElementById("humidity").value);
+
     document.getElementById("phValue").textContent = ph.toFixed(1);
     document.getElementById("moistureValue").textContent = moisture + "%";
     document.getElementById("tempValue").textContent = temp + "℃";
     document.getElementById("humidityValue").textContent = humidity + "%";
+
     document.getElementById("phLabel").textContent = ph.toFixed(1);
     document.getElementById("moistureLabel").textContent = moisture;
     document.getElementById("tempLabel").textContent = temp;
     document.getElementById("humidityLabel").textContent = humidity;
-    document.getElementById("phStatus").textContent = ph < 5.5 ? "酸性寄り・要確認" : ph > 7 ? "アルカリ性寄り・要確認" : "仮の範囲内";
-    document.getElementById("moistureStatus").textContent = moisture < 35 ? "乾燥の可能性" : "水分量を確認";
-    document.getElementById("tempStatus").textContent = temp >= 35 ? "高温に注意" : temp <= 5 ? "低温に注意" : "気温を確認";
-    document.getElementById("humidityStatus").textContent = humidity >= 85 ? "高湿度に注意" : "湿度を確認";
+
+    document.getElementById("phStatus").textContent =
+      ph < 5.5 ? "酸性寄り・要確認" : ph > 7 ? "アルカリ性寄り・要確認" : "仮の範囲内";
+
+    document.getElementById("moistureStatus").textContent =
+      moisture < 35 ? "乾燥の可能性" : "水分量を確認";
+
+    document.getElementById("tempStatus").textContent =
+      temp >= 35 ? "高温に注意" : temp <= 5 ? "低温に注意" : "気温を確認";
+
+    document.getElementById("humidityStatus").textContent =
+      humidity >= 85 ? "高湿度に注意" : "湿度を確認";
+
     const messages = [];
     if (moisture < 35) messages.push("土壌が乾燥している可能性があります。土の状態を確認してください。");
     if (ph < 5.5 || ph > 7) messages.push("pHが仮の目安から外れています。作物に合う基準を確認してください。");
     if (temp >= 35) messages.push("高温です。作物の様子と水分状態を確認してください。");
     if (humidity >= 85) messages.push("湿度が高めです。病害の兆候がないか確認してください。");
-    document.getElementById("advice").textContent = messages.length ? messages.join(" ") : "大きな警告はありません。作物と土の状態も確認してください。";
+
+    document.getElementById("advice").textContent =
+      messages.length ? messages.join(" ") : "大きな警告はありません。作物と土の状態も確認してください。";
   }
-  ids.forEach(id => document.getElementById(id).addEventListener("input", update));
-  document.getElementById("reset").addEventListener("click", () => { ids.forEach(id => document.getElementById(id).value = initial[id]); update(); });
+
+  ids.forEach(id => {
+    document.getElementById(id).addEventListener("input", update);
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    ids.forEach(id => {
+      document.getElementById(id).value = initial[id];
+    });
+    update();
+  });
+
+  document.getElementById("loginButton").addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const status = document.getElementById("connectionStatus");
+
+    try {
+      status.textContent = "ログイン中...";
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      status.textContent = "ログイン成功。データを取得しています...";
+
+      onValue(ref(database, "sensorData"), snapshot => {
+        const data = snapshot.val();
+
+        if (!data) {
+          status.textContent = "ログイン済みですが、sensorDataが空です。";
+          return;
+        }
+
+        if (data.ph != null) {
+          document.getElementById("ph").value = data.ph;
+        }
+        if (data.moisture != null) {
+          document.getElementById("moisture").value = data.moisture;
+        }
+        if (data.temperature != null) {
+          document.getElementById("temp").value = data.temperature;
+        } else if (data.temp != null) {
+          document.getElementById("temp").value = data.temp;
+        }
+        if (data.humidity != null) {
+          document.getElementById("humidity").value = data.humidity;
+        }
+
+        update();
+        status.textContent = "Firebase接続中・データを受信しています";
+      }, error => {
+        status.textContent = "データ取得エラー: " + error.message;
+      });
+
+    } catch (error) {
+      status.textContent = "ログインエラー: " + error.message;
+    }
+  });
+
   update();
 </script>
 </body>
