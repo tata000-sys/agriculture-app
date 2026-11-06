@@ -16,7 +16,15 @@
 const CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQLhhkEBQsOqZYf22GXf0cq6wlTXO1e6iP99o6c3X6FK8NqQLn86RysUy_hctPsnUABHxpnyFc-8R7G/pub?gid=0&single=true&output=csv";
 const $=id=>document.getElementById(id);
 function csvRows(s){let out=[],row=[],v="",q=false;for(let i=0;i<s.length;i++){let c=s[i],n=s[i+1];if(c=='"'&&q&&n=='"'){v+='"';i++}else if(c=='"')q=!q;else if(c==','&&!q){row.push(v);v=""}else if((c=='\n'||c=='\r')&&!q){if(c=='\r'&&n=='\n')i++;row.push(v);if(row.some(x=>x.trim()))out.push(row);row=[];v=""}else v+=c}row.push(v);if(row.some(x=>x.trim()))out.push(row);return out}
-function key(s){return String(s||"").replace(/^\uFEFF/,"").trim().toLowerCase().replace(/\s/g,"")}
+function key(s){
+  return String(s||"")
+    .replace(/^\uFEFF/,"")
+    .trim()
+    .toLowerCase()
+    .replace(/[\u3000\s]/g,"")
+    .replace(/[（）]/g,c=>c==="（"?"(":")")
+    .replace(/：/g,":");
+}
 function idx(h,opts){return h.findIndex(x=>opts.includes(key(x)))}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function character(){let c=$("crop").value;let d={vegetable:["🌱","野菜"],tomato:["🍅","トマト"],strawberry:["🍓","イチゴ"],rice:["🌾","稲"]}[c];$("avatar").textContent=d[0];$("charTitle").textContent=d[1]+"を見守っています";$("charText").textContent="水分センサーの校正後に、水分状態に合わせてキャラクターの表情を切り替えます。"}
